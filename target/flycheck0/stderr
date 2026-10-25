@@ -1,0 +1,2 @@
+error: Cargo.toml: can't find `runtime_bench` bench at `benches/runtime_bench.rs` or `benches/runtime_bench/main.rs`. Please specify bench.path if you want to use a non-default path.
+error: could not parse `dynamic-llm-runtime` (manifest) due to 1 previous error
