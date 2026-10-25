@@ -1,268 +1,641 @@
-# Susru: Capsule Endoscopy Fine-Tuning Demo
+# DynamicLLM Runtime (DLLM)
 
-Susru is a terminal-based assistant fine-tuned from **Qwen2.5-0.5B** using LoRA adapters. It accepts a capsule-endoscopy disease/finding and a numeric severity score, then generates an educational, structured report.
+## A Rust-Based Dynamic Execution Runtime for Large Language Models
 
-> Medical safety: Susru is for education and prototype testing only. It does not diagnose disease, replace a clinician, or prescribe treatment. The synthetic dataset must be reviewed and validated by qualified clinicians before any patient-facing or clinical use.
+Project Domain: Artificial Intelligence, Large Language Models, Runtime Systems, GPU Computing, and Agentic AI
 
-## What the project includes
+Primary Programming Language: Rust
 
-- A memory-conscious Rust/Candle LoRA trainer for Qwen2.5-0.5B.
-- A 100,000-record synthetic capsule-endoscopy fine-tuning dataset (JSONL).
-- A converter that turns the JSONL training split into the TSV the trainer reads.
-- A terminal UI for testing the saved fine-tuned adapter.
-- Disease/finding examples including Crohn's disease, small-bowel bleeding, angiodysplasia, celiac disease, ulcers, polyps, tumors, strictures, capsule retention, and esophageal varices.
+Core Technologies: Rust, Tokio, CUDA, LLM Inference Engines, Axum, Serde, and System Resource Monitoring
 
-## Requirements
+Project Type: AI Systems Engineering and Research & Development
 
-- Rust and Cargo (stable toolchain).
-- Python 3 (used only for dataset generation/conversion).
-- A CUDA-compatible GPU. The project is configured for the 4–6 GB VRAM training profile.
-- Internet access on the first run, unless the base model has already been downloaded.
+Project Status: Research and Development
 
-## Project layout
+## 1. Abstract
 
-```text
-data/generate_100k_jsonl.py    deterministic 100,000-record JSONL generator
-data/capsule_dataset.json      full 100,000-record dataset as a single JSON array
-data/capsule_train.jsonl       training split (90,000 records)
-data/capsule_validation.jsonl  validation split (5,000 records)
-data/capsule_test.jsonl        test split (5,000 records)
-data/convert_jsonl_to_tsv.py   creates percentage TSV subsets for the Rust trainer
-data/train_10.tsv ... train_90.tsv  10% through 90% Rust-training subsets
-models/Qwen2.5-0.5B/           downloaded base-model files
-qwen2.5-0.5b-qv-lora.safetensors  trained LoRA adapter
-train_susru_unsloth.ipynb      Colab notebook: fine-tune with Unsloth/QLoRA
-src/main.rs                    training and terminal UI commands
+DynamicLLM Runtime (DLLM) is a Rust-based AI execution runtime designed to simplify the integration, orchestration, and resource-aware execution of Large Language Models (LLMs). The system aims to provide a unified interface for multiple model providers and inference backends while dynamically managing model selection, execution scheduling, and computational resources.
+
+Traditional LLM applications often rely on provider-specific APIs and independent inference pipelines. These approaches can introduce integration complexity, inconsistent execution behavior, unnecessary model-loading overhead, and inefficient resource utilization. These challenges become more significant when multiple models must operate on hardware with limited system memory and GPU video memory (VRAM).
+
+DynamicLLM Runtime addresses these problems through a modular architecture comprising a runtime orchestrator, model registry, inference adapters, intelligent routing engine, resource manager, and telemetry system. Rust serves as the primary language for implementing the runtime because of its memory safety, performance characteristics, strong type system, and support for concurrent execution.
+
+The project also explores dynamic model lifecycle management, including model loading, unloading, caching, and resource-aware scheduling across supported inference environments. CUDA-compatible inference backends can provide GPU acceleration, while local inference engines enable execution of compatible quantized models.
+
+The long-term objective is to establish a flexible and extensible runtime capable of adapting LLM execution to workload requirements, model capabilities, and available computational resources. The system aims to provide a foundation for scalable AI applications and agentic workflows while enabling measurable improvements in execution efficiency and resource utilization.
+
+Keywords: Rust, DynamicLLM Runtime, Large Language Models, LLM Inference, CUDA, Runtime Orchestration, Model Routing, GPU Memory Management, Agentic AI.
+
+## 2. Introduction
+
+Large Language Models have become an essential component of modern AI applications, supporting natural language processing, code generation, document analysis, intelligent assistants, and autonomous AI agents. As these applications become more complex, efficiently managing model execution becomes increasingly important.
+
+Existing LLM applications commonly communicate directly with model APIs or run inference through separate model-serving systems. Although this approach is effective for simple applications, it can become difficult to manage when several models, execution backends, or resource constraints are involved.
+
+DynamicLLM Runtime introduces a dedicated execution layer between AI applications and inference engines. Instead of requiring applications to manage every model integration independently, the runtime provides standardized interfaces and coordinates execution through a common architecture.
+
+Rust is used to develop the core runtime, including asynchronous task execution, request processing, model management, scheduling, and resource monitoring. The runtime can integrate with existing inference engines rather than implementing every model architecture and GPU operation from scratch.
+
+The system is intended to support both hosted LLM APIs and compatible local inference backends. This flexibility enables developers to select an appropriate execution environment based on application requirements, hardware availability, latency constraints, and model capabilities.
+
+A major research direction is the dynamic management of model residency and computational resources. By tracking model usage, loading costs, and memory availability, the runtime can investigate when models should be loaded, retained, or unloaded to reduce unnecessary overhead.
+
+## 3. Problem Statement
+
+Modern AI systems face several challenges when integrating and executing multiple LLMs.
+
+### 3.1 Model Integration Complexity
+
+Different model providers expose different APIs, authentication mechanisms, request formats, and response structures. Applications must often implement provider-specific logic, increasing development and maintenance effort.
+
+### 3.2 Inefficient Resource Utilization
+
+Large models can require substantial RAM and GPU VRAM. Loading multiple models simultaneously can exceed available memory, while repeatedly loading and unloading models may increase execution latency.
+
+### 3.3 Static Model Selection
+
+Applications frequently use a fixed model regardless of the task. However, simple classification, code generation, and complex reasoning may require different capabilities and resource budgets.
+
+### 3.4 Model Switching Overhead
+
+Switching between local models may require loading model weights, allocating memory, initializing inference engines, and preparing execution resources. These operations can create significant delays for workloads involving multiple models.
+
+### 3.5 Limited Runtime Observability
+
+Without a centralized runtime, it can be difficult to understand model-loading delays, inference latency, memory consumption, failed requests, and resource contention.
+
+### 3.6 Agentic Workflow Complexity
+
+Agentic AI applications require coordinated model calls, tool execution, intermediate state management, validation, and error recovery. These workflows benefit from a dedicated execution controller with predictable limits and consistent interfaces.
+
+DynamicLLM Runtime aims to address these challenges through standardized model integration, intelligent routing, resource-aware scheduling, and centralized execution management.
+
+## 4. Project Objectives
+
+The primary objectives of DynamicLLM Runtime are:
+
+1. Develop a high-performance LLM runtime using Rust.
+2. Provide a unified interface for multiple inference providers and backends.
+3. Implement a model registry for tracking model metadata and capabilities.
+4. Develop a routing mechanism that selects suitable models for different tasks.
+5. Investigate dynamic model loading, unloading, caching, and reuse.
+6. Monitor CPU, RAM, GPU utilization, and VRAM where supported.
+7. Implement asynchronous request execution using Tokio.
+8. Integrate compatible GPU-accelerated and local inference engines.
+9. Support agentic workflows involving multiple model calls and controlled tool execution.
+10. Implement structured logging, tracing, error handling, and performance benchmarking.
+11. Evaluate runtime performance against a direct-inference baseline.
+12. Establish an extensible architecture for future research into predictive scheduling and advanced memory management.
+
+## 5. Proposed System Architecture
+
+The architecture separates the application interface, execution logic, model management, resource scheduling, and inference backends.
+
+AI Applications and Agents
+
+Applications, developer tools, and agentic workflows
+
+API and Request Validation
+
+Axum · Serde · Request schemas
+
+Rust Runtime Orchestrator
+
+Execution lifecycle · Cancellation · Error handling
+
+Model Router
+
+Task and capability selection
+
+Resource Manager
+
+Capacity and model lifecycle
+
+Model Registry and Inference Adapters
+
+Common interfaces · Provider-specific implementations
+
+Cloud APIs
+
+Local Engines
+
+Agent Tools
+
+Response Processing and Telemetry
+
+Normalized output · Tracing · Metrics · Error reporting
+
+Figure 1. Proposed logical architecture of DynamicLLM Runtime.
+
+### 5.1 API Layer
+
+The API layer receives requests from external applications and validates their parameters. Axum can provide HTTP endpoints, while Serde supports serialization and deserialization of requests and responses.
+
+The layer can handle request identifiers, generation settings, timeouts, authentication boundaries, and structured error responses.
+
+### 5.2 Runtime Orchestrator
+
+The runtime orchestrator is the central execution component. It coordinates model selection, resource preparation, inference, result processing, and telemetry.
+
+Tokio provides asynchronous execution for I/O-intensive operations, concurrent requests, and communication with remote inference services.
+
+### 5.3 Model Registry
+
+The model registry maintains information about available models, including model identifiers, backend types, supported capabilities, context limits, quantization formats, and resource requirements.
+
+It provides a central source of metadata for routing and model management.
+
+### 5.4 Model Router
+
+The model router identifies an eligible model according to the request's requirements and the configured routing policy. It can consider task type, model capabilities, latency requirements, availability, and resource constraints.
+
+### 5.5 Resource Manager
+
+The resource manager monitors resource availability and coordinates model lifecycle operations. It can work with the model registry to determine which models are loaded, in use, or eligible for eviction.
+
+### 5.6 Inference Adapters
+
+Inference adapters provide a common interface for different model providers and execution engines. They isolate provider-specific request formats, response formats, authentication, and backend-specific errors.
+
+### 5.7 Telemetry System
+
+The telemetry system collects execution metrics, logs model selection decisions, records failures, and provides information needed to evaluate runtime performance.
+
+## 6. Dynamic Model Loading and Memory Management
+
+Dynamic model management is one of the central research areas of the project.
+
+Large language models may require substantial memory to store weights, intermediate tensors, and inference caches. On systems with limited GPU memory, efficient resource allocation is essential.
+
+### 6.1 Memory Hierarchy
+
+The runtime considers several hardware resources:
+
+| Resource   | Purpose                                           | Constraint                            |
+| ---------- | ------------------------------------------------- | ------------------------------------- |
+| SSD/NVMe   | Persistent model storage                          | Storage bandwidth and loading latency |
+| System RAM | Host-side model data and buffers                  | Available physical memory             |
+| GPU VRAM   | GPU-resident weights, tensors, and caches         | Limited capacity                      |
+| CPU        | Runtime orchestration and supported CPU inference | Compute throughput                    |
+| GPU        | Parallel inference computation                    | Memory and compute contention         |
+
+Data movement between these resources introduces overhead. Consequently, a model's performance depends not only on its size but also on its placement, backend, hardware, and workload.
+
+### 6.2 Model Lifecycle Management
+
+The model manager tracks model states such as:
+
+- Registered
+- Unloaded
+- Loading
+- Ready
+- Busy
+- Evicting
+- Failed
+
+The lifecycle manager should prevent conflicting load and unload operations and avoid evicting resources that are still needed by active inference requests.
+
+### 6.3 Model Caching
+
+The runtime can retain frequently used models to reduce repeated initialization costs.
+
+Potential policies include:
+
+- Least Recently Used (LRU): Evict the model that has been unused for the longest period.
+- Least Frequently Used (LFU): Favor models with higher historical usage.
+- Cost-aware eviction: Consider memory footprint, loading time, and expected reuse.
+- Priority-aware eviction: Preserve models associated with higher-priority workloads.
+
+The effectiveness of these policies should be measured against a baseline that loads models without an explicit residency policy.
+
+### 6.4 Memory Mapping and Weight Streaming
+
+Memory mapping and weight streaming can help manage model data in some environments, but their benefits depend on the model format and inference engine.
+
+Memory mapping does not automatically eliminate RAM requirements, and moving model data between storage and VRAM can increase latency. Any implementation should rely on supported backend capabilities and verify the results experimentally.
+
+### 6.5 Quantized Models
+
+Quantization reduces the precision of model weights to decrease memory consumption and potentially improve inference performance.
+
+DynamicLLM Runtime can use compatible quantized models through an inference backend that supports their formats. GGUF, for example, is commonly used with compatible llama.cpp-based inference engines.
+
+The runtime should track format compatibility and account for differences in model quality, memory requirements, and execution speed.
+
+## 7. Intelligent Model Routing
+
+DynamicLLM Runtime aims to select an appropriate model for each request instead of relying exclusively on a fixed model.
+
+### 7.1 Routing Criteria
+
+The router may consider:
+
+- Task category and complexity.
+- Required model capabilities.
+- Input length and context-window requirements.
+- Tool-calling or structured-output support.
+- Model availability and provider health.
+- Estimated memory consumption.
+- Latency targets.
+- Configured cost or resource limits.
+
+### 7.2 Routing Strategies
+
+Rule-based routing: Uses explicit mappings between task types and models. It is suitable for the first implementation because decisions are easy to reproduce.
+
+Capability-based routing: Filters models according to required features and compatibility.
+
+Resource-aware routing: Selects among eligible models based on available resources and estimated execution requirements.
+
+Fallback routing: Attempts another compatible backend when a request fails, subject to retry limits and safety policies.
+
+Quality-aware routing: Uses benchmark results and measured task performance to rank eligible models.
+
+### 7.3 Example
+
+A request to summarize a short document may be routed to a smaller, faster model, while a complex programming task may require a model with stronger code-generation capabilities.
+
+The router should first eliminate incompatible models and then select among eligible candidates using a configurable policy.
+
+## 8. Agentic AI Integration
+
+DynamicLLM Runtime can provide the execution foundation for agentic AI systems that perform multi-step tasks using LLMs and external tools.
+
+### 8.1 Agent Components
+
+- Task Controller: Maintains the task's current execution state.
+- Model Router: Selects models for individual steps.
+- Tool Registry: Describes available tools and their input/output contracts.
+- Execution Controller: Enforces timeouts, step limits, and cancellation.
+- State Manager: Stores relevant intermediate results.
+- Result Validator: Checks generated outputs against task requirements.
+- Audit Logger: Records model and tool execution outcomes.
+
+### 8.2 Agent Execution Workflow
+
+1. An application submits a task.
+2. The runtime initializes its execution context.
+3. The router selects a compatible model.
+4. The model generates a response or requests a tool operation.
+5. The runtime validates and executes authorized tool calls.
+6. The tool result is returned to the model.
+7. The execution controller determines whether additional steps are permitted.
+8. The runtime validates the final output and records the execution metrics.
+
+Tool access must be controlled through explicit permissions. Model-generated instructions should not automatically authorize file access, shell commands, network operations, or access to secrets.
+
+## 9. Technology Stack
+
+The following technologies form the proposed implementation stack.
+
+| Technology                           | Role                                                       |
+| ------------------------------------ | ---------------------------------------------------------- |
+| Rust                                 | Core runtime and execution management                      |
+| Tokio                                | Asynchronous runtime and concurrency                       |
+| Axum                                 | HTTP API service                                           |
+| Serde                                | Serialization and configuration                            |
+| `async-trait` or native async traits | Common asynchronous backend interfaces                     |
+| CUDA                                 | GPU acceleration through compatible inference integrations |
+| llama.cpp                            | Candidate local inference engine                           |
+| GGUF                                 | Supported model artifact format for compatible engines     |
+| Candle                               | Rust-native model experimentation and inference            |
+| `sysinfo`                            | Host resource monitoring                                   |
+| `tracing`                            | Structured logging and diagnostics                         |
+| Criterion                            | Benchmarking Rust components                               |
+| Cargo                                | Dependency management, builds, and testing                 |
+
+Not every component is mandatory for the initial release. The runtime should begin with a small, compatible set of dependencies and add other technologies when required.
+
+CUDA integration depends on the selected inference engine and its supported bindings. Rust should coordinate execution and resource policies without unnecessarily reimplementing mature model inference systems.
+
+## 10. Proposed Project Structure
+
+```
+dynamic-llm-runtime/
+├── Cargo.toml
+├── Cargo.lock
+├── README.md
+├── config/
+│   ├── models.toml
+│   └── runtime.toml
+├── src/
+│   ├── main.rs
+│   ├── lib.rs
+│   ├── api/
+│   │   ├── routes.rs
+│   │   └── handlers.rs
+│   ├── core/
+│   │   ├── runtime.rs
+│   │   ├── orchestrator.rs
+│   │   └── error.rs
+│   ├── models/
+│   │   ├── registry.rs
+│   │   ├── manager.rs
+│   │   └── lifecycle.rs
+│   ├── adapters/
+│   ├── routing/
+│   ├── scheduling/
+│   ├── memory/
+│   ├── agents/
+│   └── telemetry/
+├── tests/
+├── benches/
+├── examples/
+└── docs/
 ```
 
-## 1. Generate the fine-tuning dataset
+This is a proposed directory layout. It should be adapted to the actual source repository and implemented modules.
 
-The repository includes the generated split files (`capsule_train.jsonl`,
-`capsule_validation.jsonl`, `capsule_test.jsonl`). Regenerate the full
-100,000-record corpus when needed:
+### Module Responsibilities
 
-```powershell
-python .\data\generate_100k_jsonl.py
-```
+- `api/`: HTTP request handling and API responses.
+- `core/`: Runtime orchestration and common error types.
+- `models/`: Model metadata, registration, and lifecycle management.
+- `adapters/`: Provider and inference-engine integrations.
+- `routing/`: Model selection and fallback logic.
+- `scheduling/`: Execution queues and resource-aware scheduling.
+- `memory/`: Memory estimates, residency tracking, and eviction policies.
+- `agents/`: Multi-step execution and tool coordination.
+- `telemetry/`: Metrics, logging, and tracing.
 
-This writes the split files (`capsule_train.jsonl`, `capsule_validation.jsonl`,
-`capsule_test.jsonl`). To build a single JSON array containing the full
-100,000-record dataset (used by the Unsloth/Colab notebook), run:
+## 11. Execution Lifecycle
 
-```powershell
-python .\data\merge_to_json.py
-```
+The runtime follows a structured execution process.
 
-This writes `data/capsule_dataset.json`. The generator is deterministic and
-produces records in batches of 1,000 with a live manifest. It covers 43
-diseases/findings across inflammatory, vascular, bleeding, neoplastic,
-malabsorption, infectious, structural, and polyposis categories, with exactly
-33,333 mild / 33,333 moderate / 33,334 severe records.
+### Step 1: Request Intake
 
-The Rust trainer defaults to the deterministic 50% subset (45,000 of the
-90,000 training records) to reduce training time. To rebuild a selected subset:
+The API receives the request, validates its fields, and creates an execution identifier.
 
-```powershell
-python .\data\convert_jsonl_to_tsv.py
-```
+### Step 2: Task Analysis
 
-For example, create the 30% subset with:
+The runtime determines the task requirements and the capabilities needed to execute it.
 
-```powershell
-python .\data\convert_jsonl_to_tsv.py --percent 30
-```
+### Step 3: Model Selection
 
-The TSV uses this internal format (one record per line; `\n` is stored as
-literal characters so the trainer converts them into real newlines before
-tokenization):
+The router selects a compatible model based on configured rules, model availability, and resource constraints.
 
-```text
-Disease/finding: Crohn's disease\nSeverity: moderate\nResponse:<TAB>Findings: ...\nImpression: ...\nClinical significance: ...\nRecommendation: ...
-```
+### Step 4: Resource Preparation
 
-## 2. Download the base model for offline use (optional)
+The model manager checks whether the selected model is already available. If it is not loaded, the runtime verifies resource availability and requests initialization through the inference backend.
 
-This command downloads and saves the Qwen base-model files under `models/Qwen2.5-0.5B`:
+### Step 5: Inference
 
-```powershell
-cargo run --release -- prepare-offline
-```
+The appropriate adapter submits the normalized request to the selected backend and processes the result.
 
-After the files are downloaded, set `QWEN_OFFLINE=1` if you want to ensure the program does not try to access the network:
+### Step 6: Result Validation
 
-```powershell
-$env:QWEN_OFFLINE = "1"
-```
+The runtime normalizes the response and validates structured outputs when required.
 
-## 3. Train Susru
+### Step 7: Agent Continuation
 
-Run the LoRA fine-tuning process:
+For multi-step tasks, the execution controller determines whether another model or tool operation is necessary and permitted.
 
-```powershell
-cargo run --release -- train
-```
+### Step 8: Telemetry and Response
 
-The trainer reads `data/train_50.tsv` (45,000 records), performs three epochs by default, and writes the adapter to:
+The runtime records relevant metrics and returns the result to the application.
 
-```text
-qwen2.5-0.5b-qv-lora.safetensors
-```
+## 12. Reliability and Security
 
-### Training options
+### 12.1 Reliability
 
-```powershell
-cargo run --release -- train --epochs 3 --batch-size 8
-```
+The runtime should implement:
 
-Select one of the generated dataset sizes with `--data-percent` (default: 50):
+- Bounded retries with backoff for transient errors.
+- Request and execution timeouts.
+- Cancellation and graceful shutdown.
+- Safe model lifecycle transitions.
+- Provider health checks.
+- Structured error reporting.
+- Concurrency limits and backpressure.
+- Resource-aware admission control.
 
-```powershell
-cargo run --release -- train --epochs 3 --batch-size 8 --data-percent 30
-```
+Retries should be designed carefully for operations that may have external side effects.
 
-Valid values are `10`, `20`, `30`, `40`, `50`, `60`, `70`, `80`, and `90`.
+### 12.2 Security
 
-- `--epochs N` (default `3`, range 1–20). For a 0.5B model with rank-8 q/v
-  LoRA on 45,000 examples, 2–4 epochs is the sweet spot; more than that tends
-  to overfit and can cause the repeated-template output you may see in chat.
-- `--batch-size N` (default `1`, range 1–64). Uses **gradient accumulation**:
-  it sums `N` forward/backward passes into one optimizer update, so you get
-  smoother gradients without using more VRAM. On a 6 GB GPU, batch 8–16 is
-  comfortable.
+The system should:
 
-The full 90,000-record dataset is intentionally much slower to train than a
-small demo dataset. For a quick smoke test, create a temporary smaller copy of
-the dataset first; use the full corpus for a longer training run.
+- Protect provider credentials.
+- Validate request parameters and tool arguments.
+- Apply authorization to sensitive operations.
+- Restrict filesystem, shell, and network access.
+- Enforce request and execution limits.
+- Avoid logging sensitive prompts or credentials by default.
+- Isolate untrusted tool outputs from privileged operations.
 
-## 3b. Train in Google Colab with Unsloth
+### 12.3 Observability
 
-Prefer a cloud GPU? Open `train_susru_unsloth.ipynb` in Google Colab
-(File → Upload notebook, or upload it to Colab). It fine-tunes Qwen2.5-0.5B
-with 4-bit QLoRA via Unsloth, which is much faster and more memory-efficient
-than the local trainer.
+The telemetry layer should collect, where available:
 
-Workflow:
+- Request identifiers.
+- Selected model and backend.
+- Routing decisions.
+- Queue duration.
+- Model initialization time.
+- Time to first token.
+- Total execution latency.
+- Token counts.
+- Peak RAM and VRAM.
+- Retry count.
+- Execution status and error category.
 
-1. Upload `data/capsule_dataset.json` to a Google Drive folder.
-2. In the notebook's Configuration cell, set `DATASET_PATH` to that Drive path.
-3. Run all cells; the LoRA adapter is saved back to Drive.
+These measurements help identify performance bottlenecks and establish whether proposed runtime optimizations are effective.
 
-The notebook uses effective batch 16 (batch 2 × grad-accum 8), rank-16 LoRA on
-`q/k/v/o`, and trains in minutes on a free T4 with the quick-test settings.
+## 13. Performance Evaluation
 
-## 3c. Train with Python (QLoRA)
+Performance evaluation is essential for demonstrating the value of DynamicLLM Runtime.
 
-`finetune_capsule_qlora.py` fine-tunes `Qwen/Qwen2.5-0.5B-Instruct` directly
-from `data/capsule_dataset.json`. It preserves the structured input and trains
-the model to generate only the structured report.
+The runtime should be compared with a direct-inference baseline using the same model, hardware, generation parameters, and workload.
 
-Install a CUDA-enabled PyTorch build appropriate for your GPU, then install the
-remaining packages:
+| Metric                | Description                                            |
+| --------------------- | ------------------------------------------------------ |
+| Time to first token   | Delay before the first generated token                 |
+| Total latency         | Time required to complete a request                    |
+| Generation throughput | Tokens generated per second                            |
+| Cold-start latency    | Time to initialize an unloaded model                   |
+| Warm-request latency  | Time for a request using an already available model    |
+| Peak VRAM             | Maximum GPU memory consumption                         |
+| Peak RAM              | Maximum host memory consumption                        |
+| Model cache hit rate  | Fraction of requests served using retained models      |
+| Success rate          | Percentage of successful requests                      |
+| Concurrent throughput | Completed requests under a defined concurrent workload |
+| Switching overhead    | Additional cost when changing models                   |
 
-```powershell
-python -m pip install -r requirements-finetune.txt
-```
+### Testing Scenarios
 
-Run a short smoke test first:
+1. Single-model inference.
+2. Repeated requests to the same model.
+3. Alternating requests across multiple models.
+4. Cold-start versus warm-start execution.
+5. Resource-constrained local inference.
+6. Concurrent requests.
+7. Provider failures and recovery.
+8. Mixed workloads with different model requirements.
 
-```powershell
-python .\finetune_capsule_qlora.py --max-steps 10
-```
+Every benchmark should document the model version, quantization, inference backend, hardware configuration, workload, and measurement method.
 
-Then run the full two-epoch job:
+Performance improvements must be demonstrated through measured results rather than assumed from the use of Rust alone.
 
-```powershell
-python .\finetune_capsule_qlora.py --epochs 2 --batch-size 2 --gradient-accumulation 8
-```
+## 14. Implementation Roadmap
 
-The LoRA adapter and tokenizer are written to `outputs/susru-qwen-lora`. The
-default 4-bit mode requires an NVIDIA CUDA GPU; use `--no-load-in-4bit` only
-when you have enough RAM/VRAM for full-precision training.
+### Phase 1: Core Runtime
 
-## 4. Test the fine-tuned model
-Start the terminal UI after training:
+- Initialize the Rust project.
+- Define request and response types.
+- Implement the common inference interface.
+- Build the execution orchestrator.
+- Add unit tests and error handling.
 
-```powershell
-cargo run --release -- chat
-```
+Expected deliverable: A working runtime with one inference backend.
 
-Susru starts with:
+### Phase 2: Model Integration
 
-```text
-I'm Susru, your assistant.
-```
+- Implement the model registry.
+- Add additional inference adapters.
+- Normalize model capabilities and response formats.
+- Add integration tests.
 
-Type `/quit` or `/exit` to close the terminal UI.
+Expected deliverable: A unified interface for multiple supported models.
 
-## Input format
+### Phase 3: Routing and Telemetry
 
-Enter one line using this exact shape:
+- Implement rule-based model routing.
+- Add structured logging and tracing.
+- Record request latency and execution failures.
+- Introduce timeouts and bounded retries.
 
-```text
-Diseases: <disease or finding>; Severity: <score from 0.0 to 1.0>
-```
+Expected deliverable: A measurable runtime with predictable model selection.
 
-`Disease:` is also accepted in place of `Diseases:`. The severity score is converted internally to a training category:
+### Phase 4: Local Inference
 
-| Score range | Category |
-| --- | --- |
-| 0.00–0.33 | mild |
-| 0.34–0.66 | moderate |
-| 0.67–1.00 | severe |
+- Integrate a compatible local inference engine.
+- Implement model loading and unloading.
+- Add model reuse and lifecycle synchronization.
+- Test resource consumption.
 
-### Example input
+Expected deliverable: A runtime capable of managing compatible local inference workloads.
 
-```text
-Diseases: Crohn's disease; Severity: 0.56
-```
+### Phase 5: Resource-Aware Scheduling
 
-### Example output
+- Monitor system resource availability.
+- Implement scheduling and admission-control policies.
+- Introduce model eviction and reuse strategies.
+- Benchmark multi-model execution.
 
-```text
---- Susru Educational Capsule-Endoscopy Report ---
-Finding: Crohn's disease
-Severity score: 0.56
-Severity category: moderate
+Expected deliverable: A runtime that adapts execution decisions to resource constraints.
 
-Finding summary:
-Moderate inflammatory changes, erosions, or ulcers may require timely
-gastroenterology review. Capsule endoscopy alone does not establish a
-diagnosis or treatment plan.
+### Phase 6: Agentic Execution
 
-Limitations and next step:
-This is educational information, not a diagnosis. Capsule images and symptoms
-must be reviewed by a qualified clinician; seek urgent care for severe pain,
-vomiting, black stools, vomiting blood, fainting, or worsening weakness.
---------------------------------------------------
-```
+- Implement the task controller.
+- Add a tool registry and execution permissions.
+- Support multi-step execution state.
+- Introduce step limits and result validation.
 
-## Name response
+Expected deliverable: A controlled runtime for agentic AI workflows.
 
-At the input prompt, entering either of the following returns Susru's name:
+### Phase 7: Advanced Research
 
-```text
-What is your name?
-Who are you?
-```
+- Investigate model prefetching.
+- Evaluate memory-mapping and supported streaming approaches.
+- Explore predictive scheduling.
+- Compare advanced policies against baseline strategies.
 
-Expected reply:
+Expected deliverable: Reproducible experimental results on runtime and memory-management strategies.
 
-```text
-I'm Susru, your assistant.
-```
+## 15. Technical Challenges
 
-## Optional response-length setting
+### 15.1 Backend Compatibility
 
-Susru generates up to 160 tokens by default. Use a different cap if needed:
+Inference engines differ in supported model formats, hardware acceleration, streaming, and configuration. The runtime must maintain explicit adapter contracts and validate backend capabilities.
 
-```powershell
-cargo run --release -- chat --max-new-tokens 96
-```
+### 15.2 GPU Memory Constraints
 
-## Verification commands
+Model weights, intermediate tensors, and inference caches compete for VRAM. The runtime must account for these requirements rather than considering model weights alone.
 
-```powershell
-cargo fmt --check
-cargo check --offline
-```
-"# DynamicLLM_Runtime" 
+### 15.3 Concurrent Model Operations
+
+Multiple requests may attempt to load, use, or unload the same model. Lifecycle synchronization and safe ownership tracking are necessary.
+
+### 15.4 Scheduling Decisions
+
+A model that uses less memory may not deliver the required output quality, and a faster model may not support the requested operation. Routing must account for capability and quality constraints alongside resource usage.
+
+### 15.5 Memory Transfer Overhead
+
+Moving data between storage, RAM, and VRAM can introduce latency. The runtime must benchmark supported memory-management techniques for each target environment.
+
+### 15.6 Rust and Native Inference Integration
+
+Rust can efficiently manage orchestration and concurrency, but native inference libraries may require FFI bindings, separate processes, or service-based integration. Compatibility and error handling must be evaluated for the chosen backend.
+
+## 16. Expected Outcomes
+
+The project aims to deliver:
+
+- A modular Rust-based LLM runtime.
+- A unified interface for compatible inference backends.
+- A model registry and lifecycle manager.
+- Configurable model-routing policies.
+- Resource-aware scheduling and model reuse.
+- Local inference integration where supported.
+- An extensible foundation for agentic AI workflows.
+- Structured telemetry and performance benchmarking.
+- Reproducible evaluations of model-loading and scheduling strategies.
+
+These are intended outcomes, not claims that all features have already been implemented.
+
+## 17. Future Scope
+
+### Predictive Model Scheduling
+
+Use historical workload data to anticipate model demand and reduce cold-start delays through controlled prefetching.
+
+### Advanced Memory Management
+
+Investigate supported techniques for memory mapping, asynchronous data transfers, quantized model placement, and partial GPU residency.
+
+### Multi-Agent Execution
+
+Support multiple agents with independent task states, bounded concurrency, shared policies, and controlled tool permissions.
+
+### Distributed Inference
+
+Extend execution across multiple workers or machines while accounting for network latency, resource availability, and model placement.
+
+### Adaptive Model Routing
+
+Improve model selection using measured task performance, latency, resource consumption, and configured quality requirements.
+
+### Runtime Dashboard
+
+Develop a monitoring interface for model status, resource utilization, execution latency, throughput, and failures.
+
+### Developer SDK
+
+Provide a stable Rust API and optional HTTP interface so applications can use the runtime without depending on internal modules.
+
+## 18. Conclusion
+
+DynamicLLM Runtime is a proposed Rust-based execution platform for integrating and managing large language models across supported inference environments. Its architecture separates model integration, orchestration, routing, resource management, and telemetry to improve modularity and operational control.
+
+Rust provides the foundation for safe concurrent execution and efficient runtime implementation. Existing inference engines and compatible GPU integrations provide the underlying model computation capabilities.
+
+The project's central research direction is to make model execution more adaptable to available computational resources through model lifecycle management, resource-aware scheduling, and intelligent routing.
+
+By progressing from a reliable core runtime toward advanced memory management and agentic execution, DynamicLLM Runtime aims to provide a strong foundation for efficient, extensible, and measurable AI systems.
+
+## 19. Project Summary
+
+Project Name: DynamicLLM Runtime (DLLM)
+
+One-line Description: A Rust-based AI execution runtime designed to unify LLM inference backends and explore intelligent model routing, resource-aware scheduling, dynamic model lifecycle management, and agentic execution.
+
+Primary Language: Rust
+
+Primary Research Areas: LLM inference, runtime systems, model residency, GPU memory management, and intelligent scheduling.
+
+Core Engineering Goal: Provide a standardized and observable execution environment for large language models.
+
+Long-Term Goal: Build an adaptable AI runtime that manages model execution according to workload requirements, backend capabilities, and available computational resources.
+
+Documentation note: This document describes the proposed system design and implementation direction. The actual repository, completed features, and benchmark results should be reviewed before presenting them as verified project achievements.
