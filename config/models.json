@@ -1,0 +1,36 @@
+{
+  "models": [
+    {
+      "id": "gpt-3.5-turbo",
+      "name": "GPT-3.5 Turbo",
+      "backend": "openai",
+      "capabilities": {
+        "supports_tools": true,
+        "supports_streaming": true,
+        "supports_structured_output": true,
+        "task_affinity": ["general", "qa"]
+      },
+      "context_limit": 4096,
+      "memory_required_mb": 0,
+      "quantization": null,
+      "enabled": true,
+      "priority": 0
+    },
+    {
+      "id": "llama-3.2-3b",
+      "name": "LLaMA 3.2 3B",
+      "backend": "llama.cpp",
+      "capabilities": {
+        "supports_tools": false,
+        "supports_streaming": true,
+        "supports_structured_output": false,
+        "task_affinity": ["summarization", "general"]
+      },
+      "context_limit": 8192,
+      "memory_required_mb": 2048,
+      "quantization": "GGUF",
+      "enabled": true,
+      "priority": 0
+    }
+  ]
+}

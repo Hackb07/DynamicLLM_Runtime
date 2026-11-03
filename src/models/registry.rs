@@ -13,6 +13,21 @@ pub struct ModelInfo {
     pub memory_required_mb: u64,
     pub quantization: Option<String>,
     pub enabled: bool,
+    /// Path to a local `.gguf` weight file. When set on a `llama.cpp` model,
+    /// the runtime manages the server lifecycle itself: it spawns
+    /// `llama-server -m <gguf_path>` on load (SSD-backed `--mmap`, no
+    /// `--mlock`) and stops it on unload. When unset, the runtime keeps the
+    /// legacy behavior of talking to an externally started server.
+    #[serde(default)]
+    pub gguf_path: Option<String>,
+    /// Port for the managed server. Defaults to the port parsed from
+    /// `llamacpp_base_url` (or 8081). Each managed model needs its own port.
+    #[serde(default)]
+    pub local_port: Option<u16>,
+    /// Eviction priority: higher survives longer under the
+    /// `priority_aware` policy (ties broken by age). Defaults to 0.
+    #[serde(default)]
+    pub priority: u32,
 }
 
 #[derive(Debug)]
@@ -44,6 +59,9 @@ impl ModelRegistry {
             memory_required_mb: 0,
             quantization: None,
             enabled: true,
+            gguf_path: None,
+            local_port: None,
+            priority: 0,
         });
 
         self.register(ModelInfo {
@@ -60,6 +78,9 @@ impl ModelRegistry {
             memory_required_mb: 2048,
             quantization: Some("GGUF".to_string()),
             enabled: true,
+            gguf_path: None,
+            local_port: None,
+            priority: 0,
         });
     }
 
@@ -67,8 +88,17 @@ impl ModelRegistry {
         self.models.insert(model.id.clone(), model);
     }
 
+    /// Remove all registered models (used when a config file replaces
+    /// the built-in defaults).
+    pub fn clear(&mut self) {
+        self.models.clear();
+    }
+
     pub fn get(&self, id: &str) -> Result<ModelInfo> {
-        self.models.get(id).cloned().ok_or_else(|| Error::ModelNotFound(id.to_string()))
+        self.models
+            .get(id)
+            .cloned()
+            .ok_or_else(|| Error::ModelNotFound(id.to_string()))
     }
 
     pub fn list_models(&self) -> Vec<ModelInfo> {
@@ -78,7 +108,12 @@ impl ModelRegistry {
     pub fn find_eligible(&self, task_affinity: &str) -> Vec<ModelInfo> {
         self.models
             .values()
-            .filter(|m| m.enabled && m.capabilities.task_affinity.contains(&task_affinity.to_string()))
+            .filter(|m| {
+                m.enabled
+                    && m.capabilities
+                        .task_affinity
+                        .contains(&task_affinity.to_string())
+            })
             .cloned()
             .collect()
     }

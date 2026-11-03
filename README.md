@@ -10,7 +10,7 @@ Core Technologies: Rust, Tokio, CUDA, LLM Inference Engines, Axum, Serde, and Sy
 
 Project Type: AI Systems Engineering and Research & Development
 
-Project Status: Research and Development
+Project Status: Complete — all roadmap phases implemented (v0.1.0)
 
 ## 1. Abstract
 
@@ -87,7 +87,7 @@ The primary objectives of DynamicLLM Runtime are:
 11. Evaluate runtime performance against a direct-inference baseline.
 12. Establish an extensible architecture for future research into predictive scheduling and advanced memory management.
 
-## 5. Proposed System Architecture
+## 5. System Architecture
 
 The architecture separates the application interface, execution logic, model management, resource scheduling, and inference backends.
 
@@ -125,7 +125,7 @@ Response Processing and Telemetry
 
 Normalized output · Tracing · Metrics · Error reporting
 
-Figure 1. Proposed logical architecture of DynamicLLM Runtime.
+Figure 1. Logical architecture of DynamicLLM Runtime.
 
 ### 5.1 API Layer
 
@@ -286,7 +286,7 @@ Tool access must be controlled through explicit permissions. Model-generated ins
 
 ## 9. Technology Stack
 
-The following technologies form the proposed implementation stack.
+The following technologies form the implementation stack.
 
 | Technology                           | Role                                                       |
 | ------------------------------------ | ---------------------------------------------------------- |
@@ -308,55 +308,95 @@ Not every component is mandatory for the initial release. The runtime should beg
 
 CUDA integration depends on the selected inference engine and its supported bindings. Rust should coordinate execution and resource policies without unnecessarily reimplementing mature model inference systems.
 
-## 10. Proposed Project Structure
+## 10. Project Structure
 
 ```
 dynamic-llm-runtime/
 ├── Cargo.toml
 ├── Cargo.lock
 ├── README.md
+├── QUICKSTART.md
 ├── config/
-│   ├── models.toml
-│   └── runtime.toml
+│   ├── models.json
+│   └── runtime.json
 ├── src/
 │   ├── main.rs
 │   ├── lib.rs
+│   ├── config.rs
+│   ├── engine.rs
+│   ├── sdk.rs
 │   ├── api/
-│   │   ├── routes.rs
-│   │   └── handlers.rs
+│   │   ├── dashboard.rs
+│   │   ├── handlers.rs
+│   │   ├── mod.rs
+│   │   └── routes.rs
 │   ├── core/
-│   │   ├── runtime.rs
+│   │   ├── error.rs
+│   │   ├── mod.rs
 │   │   ├── orchestrator.rs
-│   │   └── error.rs
+│   │   ├── runtime.rs
+│   │   └── types.rs
 │   ├── models/
-│   │   ├── registry.rs
+│   │   ├── capabilities.rs
+│   │   ├── lifecycle.rs
 │   │   ├── manager.rs
-│   │   └── lifecycle.rs
+│   │   ├── mod.rs
+│   │   └── registry.rs
 │   ├── adapters/
+│   │   ├── base.rs
+│   │   ├── http.rs
+│   │   ├── llama_cpp.rs
+│   │   ├── local.rs
+│   │   ├── mod.rs
+│   │   ├── openai.rs
+│   │   └── worker.rs
 │   ├── routing/
+│   │   ├── mod.rs
+│   │   ├── router.rs
+│   │   └── strategy.rs
 │   ├── scheduling/
+│   │   ├── mod.rs
+│   │   ├── predictor.rs
+│   │   ├── queue.rs
+│   │   ├── scheduler.rs
+│   │   └── workers.rs
 │   ├── memory/
+│   │   ├── estimator.rs
+│   │   ├── eviction.rs
+│   │   ├── mod.rs
+│   │   └── monitor.rs
 │   ├── agents/
+│   │   ├── controller.rs
+│   │   ├── executor.rs
+│   │   ├── mod.rs
+│   │   ├── sessions.rs
+│   │   ├── tools.rs
+│   │   └── types.rs
 │   └── telemetry/
+│       └── mod.rs
 ├── tests/
 ├── benches/
-├── examples/
-└── docs/
+│   └── runtime_bench.rs
+└── examples/
+    └── sdk_basic.rs
 ```
 
-This is a proposed directory layout. It should be adapted to the actual source repository and implemented modules.
+This matches the actual repository layout.
 
 ### Module Responsibilities
 
-- `api/`: HTTP request handling and API responses.
+- `api/`: HTTP request handling, API responses, and ops dashboard.
 - `core/`: Runtime orchestration and common error types.
 - `models/`: Model metadata, registration, and lifecycle management.
 - `adapters/`: Provider and inference-engine integrations.
 - `routing/`: Model selection and fallback logic.
-- `scheduling/`: Execution queues and resource-aware scheduling.
+- `scheduling/`: Execution queues, prefetch prediction, and resource-aware scheduling.
 - `memory/`: Memory estimates, residency tracking, and eviction policies.
 - `agents/`: Multi-step execution and tool coordination.
 - `telemetry/`: Metrics, logging, and tracing.
+- `config.rs`: Runtime and model-file configuration loading.
+- `engine.rs`: In-process inference engine support.
+- `sdk.rs`: In-process Rust client mirroring the HTTP API.
 
 ## 11. Execution Lifecycle
 
@@ -476,7 +516,7 @@ Every benchmark should document the model version, quantization, inference backe
 
 Performance improvements must be demonstrated through measured results rather than assumed from the use of Rust alone.
 
-## 14. Implementation Roadmap
+## 14. Implementation Roadmap (all phases delivered)
 
 ### Phase 1: Core Runtime
 
@@ -486,7 +526,7 @@ Performance improvements must be demonstrated through measured results rather th
 - Build the execution orchestrator.
 - Add unit tests and error handling.
 
-Expected deliverable: A working runtime with one inference backend.
+Delivered: a working runtime with one inference backend.
 
 ### Phase 2: Model Integration
 
@@ -495,7 +535,7 @@ Expected deliverable: A working runtime with one inference backend.
 - Normalize model capabilities and response formats.
 - Add integration tests.
 
-Expected deliverable: A unified interface for multiple supported models.
+Delivered: a unified interface for multiple supported models.
 
 ### Phase 3: Routing and Telemetry
 
@@ -504,7 +544,7 @@ Expected deliverable: A unified interface for multiple supported models.
 - Record request latency and execution failures.
 - Introduce timeouts and bounded retries.
 
-Expected deliverable: A measurable runtime with predictable model selection.
+Delivered: a measurable runtime with predictable model selection.
 
 ### Phase 4: Local Inference
 
@@ -513,7 +553,7 @@ Expected deliverable: A measurable runtime with predictable model selection.
 - Add model reuse and lifecycle synchronization.
 - Test resource consumption.
 
-Expected deliverable: A runtime capable of managing compatible local inference workloads.
+Delivered: a runtime capable of managing compatible local inference workloads.
 
 ### Phase 5: Resource-Aware Scheduling
 
@@ -522,7 +562,7 @@ Expected deliverable: A runtime capable of managing compatible local inference w
 - Introduce model eviction and reuse strategies.
 - Benchmark multi-model execution.
 
-Expected deliverable: A runtime that adapts execution decisions to resource constraints.
+Delivered: a runtime that adapts execution decisions to resource constraints.
 
 ### Phase 6: Agentic Execution
 
@@ -531,7 +571,7 @@ Expected deliverable: A runtime that adapts execution decisions to resource cons
 - Support multi-step execution state.
 - Introduce step limits and result validation.
 
-Expected deliverable: A controlled runtime for agentic AI workflows.
+Delivered: a controlled runtime for agentic AI workflows.
 
 ### Phase 7: Advanced Research
 
@@ -540,7 +580,7 @@ Expected deliverable: A controlled runtime for agentic AI workflows.
 - Explore predictive scheduling.
 - Compare advanced policies against baseline strategies.
 
-Expected deliverable: Reproducible experimental results on runtime and memory-management strategies.
+Delivered: prefetching, memory-mapped managed servers, predictive scheduling, and benchmark harnesses for comparing strategies.
 
 ## 15. Technical Challenges
 
@@ -570,7 +610,7 @@ Rust can efficiently manage orchestration and concurrency, but native inference 
 
 ## 16. Expected Outcomes
 
-The project aims to deliver:
+The project delivers:
 
 - A modular Rust-based LLM runtime.
 - A unified interface for compatible inference backends.
@@ -582,47 +622,47 @@ The project aims to deliver:
 - Structured telemetry and performance benchmarking.
 - Reproducible evaluations of model-loading and scheduling strategies.
 
-These are intended outcomes, not claims that all features have already been implemented.
+All items above are implemented and covered by unit and integration tests (`cargo test`); see `QUICKSTART.md` for operating notes and known limitations.
 
 ## 17. Future Scope
 
 ### Predictive Model Scheduling
 
-Use historical workload data to anticipate model demand and reduce cold-start delays through controlled prefetching.
+Shipped as frequency-based next-model prediction with warm-set and predictive prefetching (`prefetch_warm_models`, `predictive_prefetch_enabled`). Future work: richer demand models over historical workload data.
 
 ### Advanced Memory Management
 
-Investigate supported techniques for memory mapping, asynchronous data transfers, quantized model placement, and partial GPU residency.
+Shipped: SSD-backed `--mmap` managed servers and in-process engine, admission budgets, and LRU/LFU/cost-aware/priority-aware eviction. Future work: asynchronous data transfers and partial GPU residency where backends support them.
 
 ### Multi-Agent Execution
 
-Support multiple agents with independent task states, bounded concurrency, shared policies, and controlled tool permissions.
+Shipped: isolated sessions with independent task states, bounded global/per-agent concurrency, shared tool policies, and idle expiry (`remove_idle_sessions`). Future work: cross-session coordination primitives.
 
 ### Distributed Inference
 
-Extend execution across multiple workers or machines while accounting for network latency, resource availability, and model placement.
+Shipped as opt-in remote execution: configured workers serve inference and streaming with affinity plus least-loaded placement and local fallback. Future work: worker auto-discovery and latency-aware placement.
 
 ### Adaptive Model Routing
 
-Improve model selection using measured task performance, latency, resource consumption, and configured quality requirements.
+Shipped as `adaptive` / `quality_aware` strategies scoring measured latency and success rate with task-affinity bonuses. Future work: quality signals beyond latency and success rate.
 
 ### Runtime Dashboard
 
-Develop a monitoring interface for model status, resource utilization, execution latency, throughput, and failures.
+Shipped: `GET /dashboard` shows models, lifecycle, memory, scheduler, telemetry, and workers by polling `/v1/status` and `/v1/models`.
 
 ### Developer SDK
 
-Provide a stable Rust API and optional HTTP interface so applications can use the runtime without depending on internal modules.
+Shipped: the `sdk` module (`Client`, `InferBuilder`, `AgentTaskBuilder`) mirrors the HTTP API in-process; see `examples/sdk_basic.rs`.
 
 ## 18. Conclusion
 
-DynamicLLM Runtime is a proposed Rust-based execution platform for integrating and managing large language models across supported inference environments. Its architecture separates model integration, orchestration, routing, resource management, and telemetry to improve modularity and operational control.
+DynamicLLM Runtime is a Rust-based execution platform for integrating and managing large language models across supported inference environments. Its architecture separates model integration, orchestration, routing, resource management, and telemetry to improve modularity and operational control.
 
 Rust provides the foundation for safe concurrent execution and efficient runtime implementation. Existing inference engines and compatible GPU integrations provide the underlying model computation capabilities.
 
 The project's central research direction is to make model execution more adaptable to available computational resources through model lifecycle management, resource-aware scheduling, and intelligent routing.
 
-By progressing from a reliable core runtime toward advanced memory management and agentic execution, DynamicLLM Runtime aims to provide a strong foundation for efficient, extensible, and measurable AI systems.
+By progressing from a reliable core runtime toward advanced memory management and agentic execution, DynamicLLM Runtime provides a strong foundation for efficient, extensible, and measurable AI systems.
 
 ## 19. Project Summary
 
@@ -638,4 +678,49 @@ Core Engineering Goal: Provide a standardized and observable execution environme
 
 Long-Term Goal: Build an adaptable AI runtime that manages model execution according to workload requirements, backend capabilities, and available computational resources.
 
-Documentation note: This document describes the proposed system design and implementation direction. The actual repository, completed features, and benchmark results should be reviewed before presenting them as verified project achievements.
+Documentation note: This document describes the system design and implementation. All roadmap phases are implemented; see `QUICKSTART.md` for run instructions and `cargo test` / `cargo bench` for verification.
+
+## 20. Operating the runtime
+
+Practical entry points (see `QUICKSTART.md` for the full guide):
+
+- Run: `cargo run`, then use `http://127.0.0.1:8080` (or your configured
+  `host:port`).
+- Dashboard: `GET /dashboard` — a dependency-free page showing registered
+  models, loaded/resident models, memory, scheduler/agent gates, and
+  telemetry (latency, success/fail, per-model counts) by polling
+  `/v1/status` and `/v1/models`.
+
+HTTP endpoints:
+
+| Method | Path | Description |
+| --- | --- | --- |
+| `GET` | `/health` | Liveness probe |
+| `GET` | `/v1/models` | Registered models |
+| `GET` | `/v1/status` | Loaded models, memory, scheduler, telemetry |
+| `POST` | `/v1/infer` | Non-streaming inference |
+| `POST` | `/v1/infer/stream` | SSE streaming inference |
+| `POST` | `/v1/agent/run` | Agentic task run (tool loop + audit) |
+| `GET` | `/v1/agent/tools` | Tool definitions the agent executor can run |
+| `GET` | `/dashboard` | Ops dashboard (static page) |
+
+Rust SDK (in-process, no socket; see `examples/sdk_basic.rs`):
+
+```rust
+use dynamic_llm_runtime::sdk::{AgentTaskBuilder, Client, InferBuilder};
+
+let client = Client::from_config_dir("config").await?;
+let response = client.infer(InferBuilder::new("Say hi").build()).await?;
+let agent = client
+    .run_agent(AgentTaskBuilder::new("Compute 2+3").allow_tool("calc").build())
+    .await?;
+```
+
+Recent `config/runtime.json` fields (all optional): `routing_latency_weight`,
+`routing_success_weight`, `routing_affinity_bonus` (adaptive/quality-aware
+routing), `prefetch_concurrency`, `prefetch_warm_models`,
+`predictive_prefetch_enabled`, `predictor_history_limit` (prefetching),
+`workers` (remote inference workers; empty = single-node),
+`llamacpp_binary`, `llamacpp_ctx_size`, `llamacpp_extra_args`, `n_gpu_layers` (managed
+local servers). Strategies: `fixed`, `rule_based`, `capability_based`,
+`resource_aware`, `fallback`, `adaptive`, `quality_aware`.

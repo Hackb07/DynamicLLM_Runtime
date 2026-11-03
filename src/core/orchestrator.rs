@@ -1,6 +1,6 @@
 use crate::core::error::Result;
-use crate::core::types::{InferenceRequest, InferenceResponse};
 use crate::core::runtime::Runtime;
+use crate::core::types::{InferenceRequest, InferenceResponse};
 use std::sync::Arc;
 
 pub struct Orchestrator {
