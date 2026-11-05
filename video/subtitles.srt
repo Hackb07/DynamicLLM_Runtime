@@ -1,0 +1,31 @@
+1
+00:00:00,000 --> 00:00:25,000
+Every LLM app hits the same wall. A different API for every provider. A fixed model for every task. Limited RAM and VRAM. No visibility. DynamicLLM Runtime fixes that.
+
+2
+00:00:25,000 --> 00:00:55,000
+DynamicLLM Runtime is a Rust execution layer between your app and your models. One interface for cloud APIs and local engines. Validate, route, prepare, infer, with metrics.
+
+3
+00:00:55,000 --> 00:01:30,000
+Adapters isolate OpenAI, llama.cpp, local HTTP, and in-process GGUF. Registry tracks capabilities. Seven routing strategies pick the right model, including adaptive scoring on latency and success rate.
+
+4
+00:01:30,000 --> 00:02:05,000
+Safe model lifecycle, memory budgets, LRU LFU cost and priority eviction. SSD memory-mapped servers, prefetch and predictive scheduling cut cold starts.
+
+5
+00:02:05,000 --> 00:02:35,000
+Agentic tool loops with audit and deny-by-default. HTTP API for infer, streaming, and agents. Live dashboard. In-process Rust SDK.
+
+6
+00:02:35,000 --> 00:03:20,000
+Live demo: cargo run, list models, inference, agent run, and the dashboard with lifecycle, memory, and telemetry.
+
+7
+00:03:20,000 --> 00:03:50,000
+Built on Rust, Tokio, Axum. Retries, timeouts, backpressure, health checks. Measured on latency, throughput, VRAM, and hit rate.
+
+8
+00:03:50,000 --> 00:04:00,000
+One runtime for every model. Thanks for watching.

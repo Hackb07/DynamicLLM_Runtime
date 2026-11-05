@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DynamicLLM Runtime — 4-min Video Slides</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:system-ui,Segoe UI,Roboto,sans-serif;background:#0b1220;color:#e8eefc}
+.slide{display:none;min-height:100vh;padding:56px 72px}.slide.active{display:flex;flex-direction:column;justify-content:center}
+h1{font-size:56px;margin:0 0 12px}h2{font-size:36px;margin:0 0 20px;color:#93c5fd}
+.sub{font-size:22px;color:#b6c4e2}.grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:24px}
+.card{background:#141f36;border:1px solid #2a3c63;border-radius:12px;padding:18px 20px;font-size:19px}
+.card b{color:#93c5fd}.pill{display:inline-block;background:#1e40af;border-radius:999px;padding:4px 14px;margin:4px 6px 0 0;font-size:17px}
+code{background:#0a0f1e;border:1px solid #2a3c63;border-radius:6px;padding:2px 8px;font-size:17px;color:#fcd34d}
+.flow{display:flex;flex-wrap:wrap;gap:10px;margin-top:20px;font-size:18px}.flow span{background:#141f36;border:1px solid #2a3c63;border-radius:10px;padding:12px 16px}
+.arrow{color:#64748b}.foot{position:fixed;bottom:14px;left:0;right:0;text-align:center;color:#64748b;font-size:14px}
+table{border-collapse:collapse;margin-top:16px;font-size:18px}th,td{border:1px solid #2a3c63;padding:8px 14px;text-align:left}th{color:#93c5fd}
+ul{font-size:20px;line-height:1.7}small{color:#8fa0c2}
+.nav{position:fixed;top:14px;right:18px;color:#64748b;font-size:14px}
+</style>
+</head>
+<body>
+<div class="nav">← → to navigate · F11 to present · 7 slides</div>
+
+<section class="slide active">
+<h1>DynamicLLM Runtime</h1>
+<div class="sub">A Rust-based execution layer for LLMs — one API for every model, backend &amp; agent.</div>
+<div class="grid">
+<div class="card">🔌 <b>Integration pain</b><br>Different API per provider</div>
+<div class="card">📌 <b>Static model</b><br>Same model for every task</div>
+<div class="card">💾 <b>Memory pressure</b><br>RAM / VRAM overload, cold starts</div>
+<div class="card">🕶️ <b>No visibility</b><br>What's slow, loaded, failed?</div>
+</div>
+<p><span class="pill">One runtime</span><span class="pill">Smart routing</span><span class="pill">Resource-aware</span><span class="pill">Agentic</span></p>
+</section>
+
+<section class="slide">
+<h2>Architecture — one path for every request</h2>
+<div class="flow">
+<span>App / Agent</span><span class="arrow">→</span><span>Axum API + Serde</span><span class="arrow">→</span><span>Orchestrator (Tokio)</span><span class="arrow">→</span><span>Router</span><span class="arrow">→</span><span>Resource Mgr</span><span class="arrow">→</span><span>Adapters</span><span class="arrow">→</span><span>Telemetry</span>
+</div>
+<div class="grid">
+<div class="card"><b>Request → Response</b><br>Validate → select model → prepare resources → infer → normalize → metrics</div>
+<div class="card"><b>Backends</b><br><code>openai</code> · <code>llama.cpp</code> · <code>local http</code> · <code>in-process GGUF</code></div>
+</div>
+<small>Code: src/core · src/api · src/adapters · src/telemetry</small>
+</section>
+
+<section class="slide">
+<h2>Unified backends + 7 routing strategies</h2>
+<div class="grid">
+<div class="card"><b>Model registry</b><br>Capabilities, context limits, quantization, memory MB, priority</div>
+<div class="card"><b>Router considers</b><br>Task, capabilities, context, tools, health, memory, latency, cost</div>
+</div>
+<p style="font-size:20px">
+<span class="pill">fixed</span><span class="pill">rule_based</span><span class="pill">capability_based</span><span class="pill">resource_aware</span><span class="pill">fallback</span><span class="pill">adaptive ★</span><span class="pill">quality_aware ★</span>
+</p>
+<div class="card">Example: short summary → small fast model · hard code task → strong code model. ★ = scored on measured latency + success rate + task-affinity bonus.</div>
+</section>
+
+<section class="slide">
+<h2>Lifecycle · Memory · Scheduling</h2>
+<div class="flow"><span>Registered</span><span class="arrow">→</span><span>Loading</span><span class="arrow">→</span><span>Ready</span><span class="arrow">→</span><span>Busy</span><span class="arrow">→</span><span>Evicting</span><span class="arrow">→</span><span>Failed</span></div>
+<table><tr><th>Resource</th><th>Role</th><th>Policy</th></tr>
+<tr><td>SSD / NVMe</td><td>mmap weights, managed llama-server</td><td>SSD-backed, larger-than-RAM OK</td></tr>
+<tr><td>RAM / VRAM</td><td>weights, tensors, KV cache</td><td>budget admission + residency tracking</td></tr>
+<tr><td>Eviction</td><td>retain hot models</td><td>LRU · LFU · cost-aware · priority-aware</td></tr>
+<tr><td>Prefetch</td><td>cut cold starts</td><td>warm set + predictive next-model</td></tr></table>
+</section>
+
+<section class="slide">
+<h2>Agents · API · Dashboard · SDK</h2>
+<table><tr><th>Method</th><th>Path</th><th>What</th></tr>
+<tr><td>GET</td><td><code>/health</code> <code>/v1/models</code> <code>/v1/status</code></td><td>liveness, registry, lifecycle+memory+telemetry</td></tr>
+<tr><td>POST</td><td><code>/v1/infer</code> <code>/v1/infer/stream</code></td><td>JSON infer + SSE stream, failover at startup</td></tr>
+<tr><td>POST/GET</td><td><code>/v1/agent/run</code> <code>/v1/agent/tools</code></td><td>tool loop + audit, deny-by-default</td></tr>
+<tr><td>GET</td><td><code>/dashboard</code></td><td>dependency-free ops page, 5s auto-refresh</td></tr></table>
+<div class="card" style="margin-top:16px"><b>Rust SDK (no HTTP):</b> <code>Client::from_config_dir</code> → <code>infer()</code> → <code>run_agent()</code> → <code>status()</code> — see <code>examples/sdk_basic.rs</code></div>
+</section>
+
+<section class="slide">
+<h2>Built on Rust — reliable &amp; measured</h2>
+<div class="grid">
+<div class="card"><b>Stack</b><br>Rust · Tokio · Axum · Serde<br>tracing · sysinfo · Criterion · llama.cpp / CUDA</div>
+<div class="card"><b>Reliability</b><br>Bounded retries + backoff · timeouts · graceful shutdown · concurrency limits · backpressure · health checks</div>
+<div class="card"><b>Metrics</b><br>TTFT · total latency · tok/s · cold vs warm · peak RAM/VRAM · cache hit rate · success rate</div>
+<div class="card"><b>Verify</b><br><code>cargo test</code> · <code>cargo clippy</code> · <code>cargo bench</code> · baseline comparisons</div>
+</div>
+</section>
+
+<section class="slide">
+<h1>One runtime. Every model.</h1>
+<div class="sub">Smart routing · Respected memory · Trusted agents · Full observability</div>
+<ul>
+<li>✅ All roadmap phases delivered (v0.1.0) — core → agents → prefetch → dashboard → SDK</li>
+<li>🔜 Richer demand models · partial GPU residency · worker auto-discovery</li>
+<li>▶️ Run: <code>cargo run</code> → <code>http://127.0.0.1:8080/dashboard</code></li>
+</ul>
+<p class="sub">Thanks for watching.</p>
+</section>
+
+<div class="foot"><span id="n">1 / 7</span> · DynamicLLM Runtime</div>
+<script>
+let i=0;const s=[...document.querySelectorAll('.slide')];const n=document.getElementById('n');
+function show(k){i=(k+s.length)%s.length;s.forEach((e,j)=>e.classList.toggle('active',j===i));n.textContent=(i+1)+' / '+s.length}
+addEventListener('keydown',e=>{if(e.key==='ArrowRight'||e.key===' ')show(i+1);if(e.key==='ArrowLeft')show(i-1)});
+</script>
+</body>
+</html>
